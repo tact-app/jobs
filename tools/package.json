@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "scripts": {},
+  "dependencies": {
+    "@linear/import": "^1.6.2"
+  }
+}
