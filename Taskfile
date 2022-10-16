@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+
+[ "${BASH_VERSINFO:-0}" -ge 4 ] || {
+  echo "bash version 4 or higher is required" >&2
+  exit 1
+}
+
+set -euo pipefail
+
+@node() {
+  docker run --rm -it \
+    --env-file .env \
+    -v "$(pwd)":/app \
+    -w /app \
+    "${@:2}" \
+    --entrypoint=/bin/sh \
+    node:16-alpine -c "${1}"
+}
+
+npm() { @node "npm ${*}"; }
+
+tools() {
+  # dirty hack related to "docker: open .env: no such file or directory"
+  unset -f npm
+
+  (cd tools && "${@}")
+}
+
+declare -A config
+config['dryrun']=false
+
+_() {
+  if ${config['dryrun']}; then
+    echo "${@}"
+    return
+  fi
+  trap 'echo "${@}"' ERR
+  "${@}"
+}
+@debug() { echo "${@}"; }
+@trace() { @debug "${@}" && "${@}"; }
+@error() { echo "${@}" >&2; }
+@fatal() { @error "${@}" && exit 1; }
+@usage() {
+  cat - <<EOF
+Usage: $0 <task> <args>
+Tasks:
+EOF
+  compgen -A function | grep -Ev '^(@|_)' | sort | cat -n
+}
+
+function @main() {
+  if [[ "${1:-}" =~ ^--dry-run|-d$ ]]; then
+    config['dryrun']=true
+    shift
+  fi
+  "${@:-@usage}"
+}
+
+@main "${@}"
